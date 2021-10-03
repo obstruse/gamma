@@ -16,8 +16,6 @@ const int START_GAMMA = BIT0;
 void setup() {
   Serial.begin(57600);
 
-  Serial.printf("Setup: Executing on core %d\n", xPortGetCoreID());
-
   gamma_event_group = xEventGroupCreate();
   
   Serial.println("create task: wifi");
@@ -30,11 +28,8 @@ void setup() {
   Serial.println("create task: i2s");
   i2sTaskCreate();
 
-  //Serial.println("create task: dotstar");
-  //dotstarTaskCreate();
-int barf = 20e6;
-
-Serial.print(barf);
+  Serial.println("create task: dotstar");
+  dotstarTaskCreate();
 
   delay(2000);  
 }

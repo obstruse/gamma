@@ -1,20 +1,22 @@
-TaskHandle_t wifiHandle = NULL;
-int wifiCore = 0;
-
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <DNSServer.h>
 
+// globals, tagged with WIFI
 struct {
   char ssid[32] = "";
   char psk[32]  = "";
-  boolean dns = false;
-  boolean ota = false;
   int aps = 0;
   String staMessage = "";
+  TaskHandle_t taskHandle = NULL;
+  int taskCore = 0;
 } WIFI;
+
+// "local" globals
+boolean dnsEnabled = false;
+boolean otaEnabled = false;
 
 // DNS server
 const byte DNS_PORT = 53;
@@ -24,10 +26,6 @@ DNSServer dnsServer;
 IPAddress apIP(192, 168, 4, 1);
 
 char IOTname[64];
-
-// network port for PG Server
-WiFiServer PGserver(12345);
-WiFiClient PGclient;
 
 //--------------------------------------------
 void wifiAP() {
@@ -39,7 +37,7 @@ void wifiAP() {
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
   dnsServer.start(DNS_PORT, "*", apIP);
 
-  WIFI.dns  = true;
+  dnsEnabled  = true;
 
   Serial.printf("AP started: %s (192.168.4.1)\n", IOTname);
 
@@ -79,14 +77,14 @@ void wifiReconnect() {
 
 //--------------------------------------------
 void wifiOTA() {
-  if ( WIFI.ota && ( WiFi.status() == WL_CONNECTED ) ) {
+  if ( otaEnabled && ( WiFi.status() == WL_CONNECTED ) ) {
     ArduinoOTA.handle();
   }
 }
 
 //--------------------------------------------
 void wifiDNS() {
-  if ( WIFI.dns ) {
+  if ( dnsEnabled ) {
     dnsServer.processNextRequest();
   }
 }
@@ -101,11 +99,11 @@ void wifi(void * pvParameters) {
   Serial.println(xPortGetCoreID());
 
   for (;;) {
-    //ArduinoOTA.handle();
+    WIFI.taskCore = xPortGetCoreID();
+
     wifiOTA();
     wifiDNS();
     
-    wifiCore = xPortGetCoreID();
     vTaskDelay(100 / portTICK_PERIOD_MS);
   }
 }
@@ -134,11 +132,7 @@ void wifiTaskCreate() {
 
     ArduinoOTA.setHostname( IOTname );
     ArduinoOTA.begin();
-    WIFI.ota = true;
-
-    // start PG Server network connection
-    PGserver.begin();
-    PGclient = PGserver.available();
+    otaEnabled = true;
 
     Serial.println(" ");
     
@@ -150,7 +144,7 @@ void wifiTaskCreate() {
     wifiAP();    
   }
 
-  Serial.println("WiFi started...");
 
-  xTaskCreate( wifi, "WiFi", 5000, NULL, 1, &wifiHandle );
+  xTaskCreate( wifi, "WiFi", 5000, NULL, 1, &WIFI.taskHandle );
+  Serial.println("...WiFi task started");
 }

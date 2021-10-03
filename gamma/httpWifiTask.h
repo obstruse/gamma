@@ -1,14 +1,14 @@
-TaskHandle_t httpWifiHandle = NULL;
-int httpWifiCore = 0;
-
 #ifndef HTTP_H
 #define HTTP_H
 #include <WebServer.h>
 
+struct {
+  TaskHandle_t taskHandle = NULL;
+  int taskCore = 0;
+} HTTP;
+
 WebServer server ( 80 );
 #endif
-
-// second page of http code
 
 //--------------------------------------------
 void handleConfig() {
@@ -116,12 +116,9 @@ void httpAP() {
 void httpWifi(void * pvParameters) {
   (void) pvParameters;
 
-  Serial.print("httpWiFi task: Executing on core ");
-  Serial.println(xPortGetCoreID());
-  
   for (;;) {
+    HTTP.taskCore = xPortGetCoreID();
     server.handleClient();
-    httpWifiCore = xPortGetCoreID();
     vTaskDelay(100 / portTICK_PERIOD_MS);
   }
 }
@@ -134,13 +131,12 @@ void httpWifiTaskCreate() {
   server.on ( "/httpReconnect", httpReconnect );
   server.on ( "/httpAP", httpAP );
   server.on ( "/httpSTA", httpSTA );
-
   server.begin();
-  Serial.println("http started...");
 
 #ifndef HTTP_TASK
 #define HTTP_TASK
-  xTaskCreate( httpWifi, "HTTP", 5000, NULL, 1, &httpWifiHandle );
+  xTaskCreate( httpWifi, "HTTP", 5000, NULL, 1, &HTTP.taskHandle );
+  Serial.println("...http Wifi task started");
 #endif
 
 }
