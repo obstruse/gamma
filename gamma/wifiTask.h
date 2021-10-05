@@ -95,9 +95,6 @@ void wifiDNS() {
 void wifi(void * pvParameters) {
   (void) pvParameters;
 
-  Serial.print("wifi task: Executing on core ");
-  Serial.println(xPortGetCoreID());
-
   for (;;) {
     WIFI.taskCore = xPortGetCoreID();
 

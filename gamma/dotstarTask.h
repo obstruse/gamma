@@ -1,5 +1,5 @@
 #include <Adafruit_DotStar.h>
-#include <SPI.h>         // COMMENT OUT THIS LINE FOR GEMMA OR TRINKET
+#include <SPI.h>
 
 // globals, tagged with DOTSTAR
 struct {

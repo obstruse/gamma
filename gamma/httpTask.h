@@ -92,9 +92,12 @@ void handleRoot() {
   "\
     <p>Uptime: %02d:%02d:%02d</p>\
     <p>%s %s %s</p>\
+    <p>loopTime: %d</p>\
+    <p>writeTime: %d</p>\
     </body></html>",
     hr, min % 60, sec % 60,
-    fileName, __DATE__, __TIME__
+    fileName, __DATE__, __TIME__,
+    I2S.loopTime, I2S.writeTime
   );
   server.sendContent ( temp );
 
