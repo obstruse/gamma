@@ -7,6 +7,7 @@ struct {
   int taskCore = 0;
   int loopTime;
   int writeTime;
+  size_t bytesWritten;
 } I2S;
 
 //--------------------------------------------
@@ -20,7 +21,8 @@ void i2s(void * pvParameters) {
 
   const int I2S_SAMPLE_RATE = 96000;
   const int I2S_SAMPLES = I2S_SAMPLE_RATE * 25 / 1000;  // (samples/second) * (25 second/1000) // 25 ms
-  const int I2S_BUFFER_LEN = I2S_SAMPLES * 2 ;     // (samples) * (bytes/sample)
+  const int I2S_BUFFER_COUNT = 5;   // must be between 2 and 128
+  const int I2S_BUFFER_LEN = I2S_SAMPLES / I2S_BUFFER_COUNT;   // (buf_len * 2) must be between 8 and 1024  // (samples) / buffers
 
   float   sampleData[I2S_SAMPLES] = {};
   int16_t sampleOut[I2S_SAMPLES];
@@ -32,8 +34,8 @@ void i2s(void * pvParameters) {
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, 
     .communication_format = I2S_COMM_FORMAT_I2S,
     .intr_alloc_flags = 0, // default interrupt priority
-    .dma_buf_count = 5,     // must be between 2 and 128
-    .dma_buf_len = I2S_BUFFER_LEN/5,    // must be between 8 and 1024
+    .dma_buf_count = I2S_BUFFER_COUNT,     // must be between 2 and 128
+    .dma_buf_len = I2S_BUFFER_LEN * 2,    // len in bytes // must be between 8 and 1024
     .use_apll = false,
     .tx_desc_auto_clear = true
   };
@@ -51,37 +53,45 @@ void i2s(void * pvParameters) {
   const int oneMillisec = I2S_SAMPLE_RATE / 1000; // (samples/second) * (second/1000) // samples in 1msec
   for (int i = 0; i < oneMillisec; i++) {
     // fill the first 1msec with tone, the rest is zero
-    //float envelope = sin( (2.0*PI) * 0.5  * i / oneMillisec); // (radians/cycle) * (cycles/buffer) * ( buffer/samples) * sample# ---- half a cycle/buffer
-    float content  = sin( (2.0*PI) * 10.0 * i / oneMillisec); // (radians/cycle) * (cycles/buffer) * ( buffer/samples) * sample# ---- 10 cycles/buffer
+    // maybe smooth the edges?
+    //float envelope = sin( (2.0*PI) * 0.5  * i / oneMillisec);
+    const float ATTACK = 0.2; // attach (and decay) in milliseconds
+    float envelope = 1.0;
+    if ( i <         (ATTACK * oneMillisec)) envelope = sin( PI * i                 / (ATTACK * oneMillisec) / 2.0);
+    if ( i > ((1.0 - ATTACK) * oneMillisec)) envelope = sin( PI * (oneMillisec - i) / (ATTACK * oneMillisec) / 2.0);
+    float content  = sin( (2.0 * PI) * 10.0 * i / oneMillisec);  // (radians/cycle) * (cycles/buffer) * ( buffer/samples) * sample# ---- 10 cycles/buffer
     //sampleData[i] = float(I2S.amplitude) * envelope * content; 
-    sampleData[i] = content; 
+    sampleData[i] = content * envelope; 
   }
-
-  TickType_t xLastWakeTime;
-  xLastWakeTime = xTaskGetTickCount();
   
+  pinMode (27,OUTPUT);
+
+  unsigned long lastTime = micros();  
   for (;;) {
-    unsigned long lastTime;
-
-    I2S.loopTime = micros() - lastTime;
-    lastTime = micros();
-
     size_t bytesWritten;
     I2S.taskCore = xPortGetCoreID();
 
-    for (int i = 0; i < I2S_SAMPLES; i++) sampleOut[i] = sampleData[i] * float(I2S.amplitude);
-    i2s_write(i2s_num, sampleOut, I2S_BUFFER_LEN, &bytesWritten, 1);
     I2S.writeTime = micros() - lastTime;
 
+    for (int i = 0; i < I2S_SAMPLES; i++) sampleOut[i] = sampleData[i] * float(I2S.amplitude);
+
+    digitalWrite (27,LOW);
+
+    // i2s_write will block until it can write to the DMA buffers...
+    i2s_write(i2s_num, (void *)(sampleOut), I2S_SAMPLES*2, &bytesWritten, portMAX_DELAY);
+
+    I2S.bytesWritten = bytesWritten;
+    I2S.loopTime = micros() - lastTime;
+    lastTime = micros();
+
+    digitalWrite (27,HIGH);
     xEventGroupSetBits(gamma_event_group, START_GAMMA);
-    
-    vTaskDelayUntil( &xLastWakeTime, 25 / portTICK_PERIOD_MS );
   }
 }
 
 //--------------------------------------------
 //--------------------------------------------
 void i2sTaskCreate() {
-  xTaskCreate( i2s, "i2s", 20000, NULL, 2, &I2S.taskHandle );
+  xTaskCreate( i2s, "i2s", 20000, NULL, 1, &I2S.taskHandle );
   Serial.println("...i2s task started");
 }

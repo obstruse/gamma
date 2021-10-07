@@ -42,12 +42,16 @@ void handleRoot() {
  <tr><th colspan='2'>Settings</th></tr>\
  <tr><th>Display Gap</th><td><input type='number' min='0' name='gap' value='%d'></td></tr>\
  <tr><th>Amplitude</th><td><input type='number' min='0' name='amplitude' value='%d'></td></tr>\
+ <tr><th colspan=2>Red<input style='margin-right:35px' type='checkbox' name='r' value=255 %s>\
+       Green<input style='margin-right:35px' type='checkbox' name='g' value=255 %s>\
+       Blue<input type='checkbox' name='b' value=255 %s>\
  <tr><td colspan=2><center><button type='submit' name='set'>Set</button></center></td></tr>\
 </table>\
 </form>\
 <br>",
   DOTSTAR.gap,
-  I2S.amplitude
+  I2S.amplitude,
+  DOTSTAR.r > 0 ? "checked" : "", DOTSTAR.g > 0 ? "checked" : "", DOTSTAR.b > 0 ? "checked" : ""
   );
   server.sendContent ( temp );
 
@@ -94,10 +98,11 @@ void handleRoot() {
     <p>%s %s %s</p>\
     <p>loopTime: %d</p>\
     <p>writeTime: %d</p>\
+    <p>bytesWritten: %d</p>\
     </body></html>",
     hr, min % 60, sec % 60,
     fileName, __DATE__, __TIME__,
-    I2S.loopTime, I2S.writeTime
+    I2S.loopTime, I2S.writeTime, I2S.bytesWritten
   );
   server.sendContent ( temp );
 
@@ -109,6 +114,9 @@ void settings() {
 
   DOTSTAR.gap = server.arg("gap").toInt();
   I2S.amplitude = server.arg("amplitude").toInt();
+  DOTSTAR.r = server.arg("r").toInt();
+  DOTSTAR.g = server.arg("g").toInt();
+  DOTSTAR.b = server.arg("b").toInt();
   
   // 204: No Content
   //      The server successfully processed the request and is not returning any content
