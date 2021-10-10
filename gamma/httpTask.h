@@ -37,24 +37,33 @@ void handleRoot() {
 
 //--------------------------------------------
   sprintf ( temp,
-"<form action='/settings'>\
-<table border='1' cellpadding='5'>\
+"<table border='1' cellpadding='5'>\
+<form action='/settings'>\
  <tr><th colspan='2'>Settings</th></tr>\
- <tr><th>Display Gap</th><td><input type='number' min='0' name='gap' value='%d'></td></tr>\
  <tr><th>Amplitude</th><td><input type='number' min='0' name='amplitude' value='%d'></td></tr>\
+ <tr><th>Pulse mSec</th><td><input type='number' min='0' max='25' name='pulseMsec' value='%d'></td></tr>\
+ <tr><th>Pulse Freq</th><td><input type='number' min='0' name='pulseFreq' value='%d'></td></tr>\
+ <tr><th>Pulse Attack</th><td><input type='number' min='0' step='0.1' max='25' name='attackMS' value='%s'></td></tr>\
+ <tr><th>Display Gap</th><td><input type='number' min='0' name='gap' value='%d'></td></tr>\
  <tr><th colspan=2>Red<input style='margin-right:35px' type='checkbox' name='r' value=255 %s>\
-       Green<input style='margin-right:35px' type='checkbox' name='g' value=255 %s>\
-       Blue<input type='checkbox' name='b' value=255 %s>\
- <tr><td colspan=2><center><button type='submit' name='set'>Set</button></center></td></tr>\
-</table>\
+                 Green<input style='margin-right:35px' type='checkbox' name='g' value=255 %s>\
+                  Blue<input type='checkbox' name='b' value=255 %s>\
+ <tr><th colspan=2><center><button type='submit' name='set'>Set</button></center></th></tr>\
 </form>\
+<form action='/presets'>\
+ <tr><th colspan=2><center>Presets</center></th></tr>\
+ <tr><th colspan=2><button style='margin-right:100px' type='submit' name='submit' value='GENUS'>GENUS</button>\
+                   <button type='submit' name='submit' value='GBNS'>GBNS</button></th></tr>\
+</form>\
+</table>\
 <br>",
+  I2S.amplitude, I2S.pulseMsec, I2S.pulseFreq, String(I2S.attackMS, 1).c_str(),
   DOTSTAR.gap,
-  I2S.amplitude,
   DOTSTAR.r > 0 ? "checked" : "", DOTSTAR.g > 0 ? "checked" : "", DOTSTAR.b > 0 ? "checked" : ""
   );
   server.sendContent ( temp );
 
+/*
 //--------------------------------------------
   sprintf ( temp,
   "\
@@ -90,19 +99,16 @@ void handleRoot() {
     uxTaskGetStackHighWaterMark(DOTSTAR.taskHandle)
   );
   server.sendContent ( temp );
+*/
 
 //--------------------------------------------
   sprintf ( temp,
   "\
     <p>Uptime: %02d:%02d:%02d</p>\
     <p>%s %s %s</p>\
-    <p>loopTime: %d</p>\
-    <p>writeTime: %d</p>\
-    <p>bytesWritten: %d</p>\
     </body></html>",
     hr, min % 60, sec % 60,
-    fileName, __DATE__, __TIME__,
-    I2S.loopTime, I2S.writeTime, I2S.bytesWritten
+    fileName, __DATE__, __TIME__
   );
   server.sendContent ( temp );
 
@@ -112,8 +118,14 @@ void handleRoot() {
 //--------------------------------------------
 void settings() {
 
-  DOTSTAR.gap = server.arg("gap").toInt();
   I2S.amplitude = server.arg("amplitude").toInt();
+  I2S.pulseMsec = server.arg("pulseMsec").toInt();
+  I2S.pulseFreq = server.arg("pulseFreq").toInt();
+  I2S.attackMS  = server.arg("attackMS").toFloat();
+
+  I2S.refresh = true;
+
+  DOTSTAR.gap = server.arg("gap").toInt();
   DOTSTAR.r = server.arg("r").toInt();
   DOTSTAR.g = server.arg("g").toInt();
   DOTSTAR.b = server.arg("b").toInt();
@@ -122,6 +134,29 @@ void settings() {
   //      The server successfully processed the request and is not returning any content
   server.send ( 204, "text/plain", "");
     
+}
+
+//--------------------------------------------
+void presets() {
+
+  if ( server.arg("submit") == "GENUS") {
+    I2S.pulseMsec = 1;
+    I2S.pulseFreq = 10000;
+    I2S.attackMS = 0.0;
+  }
+
+  if ( server.arg("submit") == "GBNS") {
+    I2S.pulseMsec = 6;
+    I2S.pulseFreq = 500;
+    I2S.attackMS = 2.0;
+  }
+
+  I2S.refresh = true;
+
+  // refresh root
+  server.sendHeader("Location", String("/"), true);
+  server.send ( 302, "text/plain", "");
+
 }
 
 //--------------------------------------------
@@ -161,6 +196,7 @@ void httpTaskCreate() {
   
   server.on ( "/", handleRoot );
   server.on ( "/settings", settings );
+  server.on ( "/presets", presets );
   server.onNotFound ( handleNotFound );
   server.begin();
   

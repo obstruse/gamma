@@ -1,7 +1,7 @@
 int mainCore = 0;
 
 char fileName[] = __FILE__;
-char temp[1000];
+char temp[2000];
 
 static EventGroupHandle_t gamma_event_group;
 const int START_GAMMA = BIT0;

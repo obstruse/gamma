@@ -26,8 +26,6 @@ void dotstar(void * pvParameters) {
   strip.begin(); // Initialize pins for output
   strip.show();  // Turn all LEDs off ASAP
 
-  pinMode(12,OUTPUT);
-
   for (;;) {
     static int dotstarIndex = 0;
     DOTSTAR.taskCore = xPortGetCoreID();
@@ -37,15 +35,13 @@ void dotstar(void * pvParameters) {
     if (DOTSTAR.gap == 0 ) {
       strip.fill(strip.Color(DOTSTAR.r, DOTSTAR.g, DOTSTAR.b));
       strip.show();                     // Refresh strip
-      digitalWrite (12,HIGH);
       delay(12);
       strip.clear();
       strip.show();                     // Refresh strip
-      digitalWrite (12,LOW);
     } else {
       for ( int i= 0; i < NUMPIXELS; i++ ) {
         strip.setPixelColor(i, ((i+dotstarIndex) % DOTSTAR.gap ) == 0 ? strip.Color(DOTSTAR.r, DOTSTAR.g, DOTSTAR.b) : 0x000000);
-        }
+      }
       dotstarIndex = (dotstarIndex + 1) % DOTSTAR.gap;
       strip.show();                     // Refresh strip
     }
